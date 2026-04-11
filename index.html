@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S4 Study Tracker Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .progress-transition { 
+            transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1); 
+        }
+
+        .view-transition { 
+            transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+        }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        
+        /* Custom checkbox style */
+        .checkbox-bounce {
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .checkbox-bounce:active { transform: scale(0.9); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-700">
+
+    <!-- Mobile Header -->
+    <header class="md:hidden bg-white/80 backdrop-blur-md border-b border-slate-200 px-5 py-4 flex justify-between items-center sticky top-0 z-40">
+        <div class="flex items-center gap-2.5">
+            <div class="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200">
+                <i data-lucide="graduation-cap" class="text-white w-5 h-5"></i>
+            </div>
+            <h1 class="font-extrabold text-xl text-slate-800 tracking-tight">S4 Tracker</h1>
+        </div>
+        <button onclick="switchView('dashboard')" class="text-slate-500 hover:text-indigo-600 transition-colors">
+            <i data-lucide="bell" class="w-6 h-6"></i>
+        </button>
+    </header>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed left-0 top-0 h-full w-72 bg-white border-r border-slate-200 hidden md:flex flex-col z-20 shadow-sm">
+        <div class="p-8 pb-6 flex items-center gap-3">
+            <div class="bg-indigo-600 p-2.5 rounded-2xl shadow-xl shadow-indigo-100">
+                <i data-lucide="graduation-cap" class="text-white w-6 h-6"></i>
+            </div>
+            <h1 class="font-extrabold text-2xl tracking-tight text-slate-800">S4 Tracker</h1>
+        </div>
+        
+        <!-- Search Bar -->
+        <div class="px-6 mb-4">
+            <div class="relative group">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                <input type="text" id="subject-search" placeholder="Quick search..." oninput="renderSidebar()" 
+                    class="w-full bg-slate-100 border-transparent focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 rounded-xl py-2.5 pl-10 pr-4 text-sm transition-all outline-none">
+            </div>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto px-4 pb-8 space-y-1 scrollbar-hide">
+            <button onclick="switchView('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all mb-4">
+                <i data-lucide="layout-grid" class="w-5 h-5"></i>
+                <span class="font-semibold">Dashboard Overview</span>
+            </button>
+            
+            <div class="pt-2 pb-2 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">Academic Subjects</div>
+            <div id="subject-nav-list" class="space-y-1.5">
+                <!-- Dynamically populated -->
+            </div>
+        </nav>
+
+        <!-- Bottom Sidebar Stats -->
+        <div class="p-6 border-t border-slate-100 bg-slate-50/50">
+            <div id="mini-progress-card">
+                <!-- Mini stats injected here -->
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="md:ml-72 p-6 md:p-12 pb-32 md:pb-12">
+        <div id="view-container" class="max-w-4xl mx-auto view-transition">
+            <!-- Content dynamically injected here -->
+        </div>
+    </main>
+
+    <!-- Mobile Navigation Bar -->
+    <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-lg border-t border-slate-200 p-3 flex justify-around z-30">
+        <button onclick="switchView('dashboard')" class="flex flex-col items-center px-6 py-2 rounded-2xl transition-all" id="mobile-nav-dash">
+            <i data-lucide="layout-grid" class="w-6 h-6"></i>
+            <span class="text-[10px] font-bold mt-1 uppercase tracking-wider">Home</span>
+        </button>
+        <button onclick="openFirstSubject()" class="flex flex-col items-center px-6 py-2 rounded-2xl transition-all" id="mobile-nav-subs">
+            <i data-lucide="book-open" class="w-6 h-6"></i>
+            <span class="text-[10px] font-bold mt-1 uppercase tracking-wider">Subjects</span>
+        </button>
+    </nav>
+
+    <script>
+        const SYLLABUS_DATA = {
+            "Mathematics for Physical Science-4": [
+                { name: "Module 1", topics: ["Random variables", "Discrete random variables & probability distributions", "Cumulative distribution function", "Expectation, Mean and variance", "Binomial distribution", "Poisson distribution & as a limit of binomial", "Joint pmf of two discrete random variables", "Marginal pmf", "Independent random variables", "Expected value of a function of two discrete variables"] },
+                { name: "Module 2", topics: ["Continuous random variables & probability distributions", "Cumulative distribution function", "Expectation, Mean and variance", "Uniform, Normal and Exponential distributions", "Joint pdf of two Continuous random variables", "Marginal pdf", "Independent random variables", "Expectation value of a function of two continuous variables"] },
+                { name: "Module 3", topics: ["Confidence Intervals & Confidence Level", "One-side confidence intervals for Population Mean", "Large and small samples (normal & t-distribution)", "Hypotheses and Test Procedures", "Type 1 and Type II error", "z Tests for Hypotheses (large sample)", "t Test for Hypotheses (small sample)", "Tests concerning a population proportion"] },
+                { name: "Module 4", topics: ["Newton-Raphson Method", "Gauss Elimination Method", "Gauss Jordan Method", "Numerical solution of ODEs - Euler's method", "Modified Euler's method", "Runge Kutta method of 2nd Order", "Numerical solution of Laplace equation - Jacobi's Method", "Curve Fitting by Method of Least Squares", "Straight lines and Parabola"] }
+            ],
+            "Soil Mechanics": [
+                { name: "Module 1", topics: ["Nature of soil and functional relationships", "3 phase system & Soil types", "Void ratio, porosity, degree of saturation", "Water content, specific gravity, unit weight", "Relationship between basic soil properties", "Relative Density", "Determination of Water content & Specific gravity", "Field density (sand replacement & Core Cutter)", "Soil Structure & Basic structural units of clay minerals"] },
+                { name: "Module 2", topics: ["Sieve analysis & Hydrometer analysis", "Strokes law, calibration, corrections", "Gradation of soil", "Consistency Atterberg Limits and indices", "Plasticity charts & activity of soil", "Liquid Limit, Plastic Limit and Shrinkage Limit tests", "IS classification of soil", "Permeability of soils & Darcy's law", "Constant head and variable head permeability tests", "Average permeability of stratified deposits"] },
+                { name: "Module 3", topics: ["Principle of effective stress", "Total, neutral and effective stress", "Pressure diagrams in layered soil", "Quick sand condition & Critical hydraulic gradient", "Boussinesq's equations for vertical Stress distribution", "Vertical pressure due to uniformly distributed loads", "Vertical pressure due to loading on rectangular area & Fadum's chart", "Approximate methods (Equivalent Point Load & 2:1 Distribution)", "Pressure Isobars & Pressure bulbs", "Distribution of contact pressure beneath footings"] },
+                { name: "Module 4", topics: ["Compaction Tests (OMC and MDD, IS Light & Heavy)", "Zero Air voids line & Factors affecting compaction", "Field compaction methods & Proctor needle", "Consolidation Concepts (e-log p curve)", "Compression, Recompression index & Pre-consolidation Pressure", "Normally, over and under consolidated soils", "Terzaghi's theory of one-dimensional consolidation", "Average degree of consolidation & Time factor", "Coefficient of consolidation & Laboratory test", "Shear strength of soils & Mohr-Coulomb failure criterion", "Triaxial compression, Unconfined compression, Direct & Vane shear test"] }
+            ],
+            "Structural Analysis - II": [
+                { name: "Module 1", topics: ["Concept of displacement approach", "Kinematic indeterminacy", "Slope Deflection Method (Concept & equations)", "Analysis of continuous beams with settlement", "Analysis of orthogonal rigid plane frames (sway/non-sway)", "Moment Distribution method (Concepts)", "Analysis of beams and non-sway frames", "Analysis of sway frames"] },
+                { name: "Module 2", topics: ["Approximate Methods of Multi-storeyed Frames", "Analysis for vertical loads (substitute frames)", "Loading condition for max hogging/sagging moments", "Analysis for lateral loads (portal & cantilever method)", "Plastic Theory (Plastic hinge, modulus, shape factor)", "Redistribution of moments & collapse mechanisms", "Plastic analysis of beams and portal frames", "Equilibrium and mechanism methods"] },
+                { name: "Module 3", topics: ["Matrix analysis of structures", "Flexibility method (Definition & concepts)", "Flexibility matrices for truss and frame elements", "Load transformation matrix", "Development of total flexibility matrix", "Analysis of simple determinate & indeterminate structures", "Plane truss and plane frame"] },
+                { name: "Module 4", topics: ["Stiffness method (Definition & concepts)", "Development of stiffness matrices by physical approach", "Stiffness matrices for truss and frame elements", "Displacement transformation matrix", "Analysis of simple indeterminate structures", "Introduction to direct stiffness method", "Stiffness matrix of beam elements", "Assembly of load vector and stiffness matrix"] }
+            ],
+            "Design of Concrete Structures": [
+                { name: "Module 1", topics: ["Properties of Concrete and Steel", "Philosophies of Design by Limit State Method", "IS 456:2000 design provisions", "Limit State of Collapse in Flexure (Singly Reinforced)", "Neutral Axis Depth and Moment of Resistance", "Limit State of Collapse in Shear", "Bond, Anchorage, Development Length and Splicing", "Torsion in Beams"] },
+                { name: "Module 2", topics: ["Doubly Reinforced Beams", "Flanged Beams", "One-way slabs (Basic Principles, Theory & design)", "Design of Two-way Slabs", "Limit State of Serviceability (IS code provisions)"] },
+                { name: "Module 3", topics: ["Compression members (Definitions & Classifications)", "Guidelines, Assumptions & modes of failure", "Analysis of Short Axially Loaded Compression Members", "Uniaxial Bending & Biaxial bending (Analysis)", "Design of Short Columns under Axial Load", "Uniaxial Bending & Biaxial bending (Design)"] },
+                { name: "Module 4", topics: ["Foundations (Shallow & isolated)", "Design of square and rectangular foundation", "Axially loaded condition foundation problems", "Modelling and design of a simple framed structure", "Structural analysis and design software usage"] }
+            ],
+            "Numerical Methods for Engineers": [
+                { name: "Module 1", topics: ["Introduction to numerical methods & Errors", "System of linear algebraic equations", "Ill-conditioned, Symmetric and Banded systems", "Gauss Elimination & Gauss Seidel iteration", "Factorization method-Choleski's method", "System of non-linear equations (Newton-Raphson)", "Eigen value problems (largest and smallest)", "Power method & Jacobi's transformation"] },
+                { name: "Module 2", topics: ["Approximation (Lagrangian & Hermite interpolation)", "Spline interpolation (Quadratic and Cubic)", "Data smoothing by least squares criterion", "Non-polynomial models (exponential & power eq)", "Multiple linear regression", "Numerical integration (Newton-Cotes)", "Trapezoidal rule & Simpson's rules"] },
+                { name: "Module 3", topics: ["Solution of first-order ODEs & stability", "Use of Taylor series", "Euler's method & Modified Euler's method", "Fourth order Runge-Kutta method", "Higher order ODEs by Runge-Kutta", "ODEs of boundary value type (Finite difference)"] },
+                { name: "Module 4", topics: ["Partial differential equations in two-dimension", "Laplace Equation and Poisson's equation", "Parabolic equations (Explicit finite difference)", "Bender-Schmidt method", "Crank-Nicholson implicit method", "Elliptic equations (Finite difference method)", "Weighted residual methods", "Collocation, Least squares, Galerkin's method"] }
+            ],
+            "Economics for Engineers": [
+                { name: "Module 1", topics: ["Basic economic problems & Concepts", "Production Possibility Curve", "Utility & Law of diminishing marginal utility", "Law of Demand & Law of supply", "Elasticity measurement & applications", "Equilibrium & Changes in demand/supply", "Production function & Law of variable proportion", "Economies of Scale (Internal & External)", "Cobb-Douglas Production Function"] },
+                { name: "Module 2", topics: ["Cost concepts (Social, private, Explicit, implicit, Sunk)", "Opportunity cost & short run cost curves", "Revenue concepts", "Firms and their objectives & Types", "Markets - Perfect Competition", "Monopoly & Monopolistic Competition", "Oligopoly (features and equilibrium)"] },
+                { name: "Module 3", topics: ["Monetary System (Money-Functions)", "Central Banking", "Inflation (Causes, Effects & Measures)", "Monetary and Fiscal policies & Deflation", "Taxation - Direct and Indirect taxes & GST", "National income (Concepts, Circular Flow, Estimation)", "Stock Market - Functions & Problems", "Demat Account and Trading Account", "Stock market Indicators (SENSEX and NIFTY)"] },
+                { name: "Module 4", topics: ["Value Analysis and value Engineering", "Cost, Exchange, Use & Esteem Value", "Aims, Advantages and Application areas of VE", "Value Engineering Procedure", "Break-even Analysis", "Cost-Benefit Analysis", "Capital Budgeting", "Process planning"] }
+            ]
+        };
+
+        let completedTopics = JSON.parse(localStorage.getItem('s4_study_progress_v2') || '{}');
+        let currentView = 'dashboard';
+        let currentSubject = '';
+
+        function getGreeting() {
+            const hr = new Date().getHours();
+            if (hr < 12) return "Good morning";
+            if (hr < 17) return "Good afternoon";
+            return "Good evening";
+        }
+
+        function saveProgress() {
+            localStorage.setItem('s4_study_progress_v2', JSON.stringify(completedTopics));
+        }
+
+        function getStats(subject) {
+            let total = 0, completed = 0;
+            SYLLABUS_DATA[subject].forEach((module, mIdx) => {
+                module.topics.forEach(topic => {
+                    total++;
+                    if (completedTopics[`${subject}-${mIdx}-${topic}`]) completed++;
+                });
+            });
+            return { total, completed, percent: total === 0 ? 0 : Math.round((completed / total) * 100) };
+        }
+
+        function getOverallStats() {
+            let total = 0, completed = 0;
+            Object.keys(SYLLABUS_DATA).forEach(sub => {
+                const s = getStats(sub);
+                total += s.total;
+                completed += s.completed;
+            });
+            return { total, completed, percent: total === 0 ? 0 : Math.round((completed / total) * 100) };
+        }
+
+        function renderSidebar() {
+            const list = document.getElementById('subject-nav-list');
+            const searchVal = document.getElementById('subject-search').value.toLowerCase();
+            const dashBtn = document.getElementById('nav-dashboard');
+            
+            // Filter subjects
+            const subjects = Object.keys(SYLLABUS_DATA).filter(s => s.toLowerCase().includes(searchVal));
+
+            list.innerHTML = subjects.map(sub => {
+                const stats = getStats(sub);
+                const isActive = currentView === 'subject' && currentSubject === sub;
+                return `
+                    <button onclick="switchView('subject', '${sub}')" class="w-full group relative flex flex-col gap-2 px-4 py-3.5 rounded-2xl transition-all duration-300 ${isActive ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 scale-[1.02]' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}">
+                        <div class="flex items-center justify-between w-full">
+                            <span class="text-sm font-semibold truncate pr-2 text-left">${sub}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${isActive ? 'bg-white/20' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-500'}">
+                                ${stats.percent}%
+                            </span>
+                        </div>
+                        <div class="h-1.5 w-full rounded-full overflow-hidden ${isActive ? 'bg-indigo-400' : 'bg-slate-100'}">
+                            <div class="h-full bg-${isActive ? 'white' : 'indigo-500'} progress-transition" style="width: ${stats.percent}%"></div>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+
+            // Dashboard Active Style
+            if (currentView === 'dashboard') {
+                dashBtn.className = "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all mb-4 bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-50 border border-indigo-100 font-bold";
+            } else {
+                dashBtn.className = "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all mb-4 text-slate-500 hover:bg-slate-50 border border-transparent";
+            }
+
+            // Mini stats card at bottom
+            const overall = getOverallStats();
+            document.getElementById('mini-progress-card').innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Overall Progress</span>
+                    <span class="text-xs font-black text-indigo-600">${overall.percent}%</span>
+                </div>
+                <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                    <div class="h-full bg-indigo-600 progress-transition" style="width: ${overall.percent}%"></div>
+                </div>
+            `;
+        }
+
+        function switchView(view, subject = '') {
+            const container = document.getElementById('view-container');
+            container.style.opacity = '0';
+            container.style.transform = 'translateY(15px)';
+
+            // Update mobile nav highlight
+            const dashMob = document.getElementById('mobile-nav-dash');
+            const subsMob = document.getElementById('mobile-nav-subs');
+            if (view === 'dashboard') {
+                dashMob.classList.add('text-indigo-600', 'bg-indigo-50');
+                subsMob.classList.remove('text-indigo-600', 'bg-indigo-50');
+                subsMob.classList.add('text-slate-400');
+            } else {
+                subsMob.classList.add('text-indigo-600', 'bg-indigo-50');
+                dashMob.classList.remove('text-indigo-600', 'bg-indigo-50');
+                dashMob.classList.add('text-slate-400');
+            }
+
+            setTimeout(() => {
+                currentView = view;
+                currentSubject = subject;
+                renderContent();
+                renderSidebar();
+                container.style.opacity = '1';
+                container.style.transform = 'translateY(0)';
+                lucide.createIcons();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 200);
+        }
+
+        function renderContent() {
+            const container = document.getElementById('view-container');
+            if (currentView === 'dashboard') {
+                const stats = getOverallStats();
+                const greeting = getGreeting();
+                
+                let breakdownHTML = Object.keys(SYLLABUS_DATA).map(sub => {
+                    const s = getStats(sub);
+                    return `
+                        <div class="group bg-slate-50/50 hover:bg-white p-5 rounded-3xl border border-transparent hover:border-slate-200 transition-all hover:shadow-xl hover:shadow-slate-100 cursor-pointer" onclick="switchView('subject', '${sub}')">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="flex flex-col">
+                                    <span class="text-base font-bold text-slate-800">${sub}</span>
+                                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">${s.completed}/${s.total} Topics Completed</span>
+                                </div>
+                                <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm text-indigo-600 font-black text-xs">
+                                    ${s.percent}%
+                                </div>
+                            </div>
+                            <div class="h-2.5 w-full bg-slate-200 rounded-full overflow-hidden flex">
+                                <div class="h-full bg-indigo-600 progress-transition" style="width: ${s.percent}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = `
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+                        <div>
+                            <h2 class="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">${greeting}!</h2>
+                            <p class="text-slate-500 font-medium mt-1">Ready to tackle your S4 semester goals today?</p>
+                        </div>
+                        <button onclick="confirmReset()" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all text-sm font-bold border border-rose-100">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Reset Progress
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                        <div class="glass-card p-8 rounded-[2.5rem] shadow-sm flex flex-col items-center text-center">
+                            <div class="p-4 bg-emerald-100 text-emerald-600 rounded-3xl mb-4"><i data-lucide="check-circle" class="w-8 h-8"></i></div>
+                            <p class="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">Topics Completed</p>
+                            <p class="text-4xl font-black text-slate-800">${stats.completed}</p>
+                        </div>
+                        <div class="glass-card p-8 rounded-[2.5rem] shadow-sm flex flex-col items-center text-center">
+                            <div class="p-4 bg-indigo-100 text-indigo-600 rounded-3xl mb-4"><i data-lucide="layers" class="w-8 h-8"></i></div>
+                            <p class="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">Curriculum Total</p>
+                            <p class="text-4xl font-black text-slate-800">${stats.total}</p>
+                        </div>
+                        <div class="glass-card p-8 rounded-[2.5rem] shadow-sm flex flex-col items-center text-center">
+                            <div class="p-4 bg-amber-100 text-amber-600 rounded-3xl mb-4"><i data-lucide="pie-chart" class="w-8 h-8"></i></div>
+                            <p class="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">Course Journey</p>
+                            <p class="text-4xl font-black text-slate-800">${stats.percent}%</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-8 opacity-5">
+                            <i data-lucide="trending-up" class="w-32 h-32"></i>
+                        </div>
+                        <h3 class="text-xl font-black mb-8 flex items-center gap-3">
+                            <i data-lucide="target" class="text-indigo-600"></i> Subject Progress Breakdown
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${breakdownHTML}
+                        </div>
+                    </div>
+                `;
+            } else {
+                const stats = getStats(currentSubject);
+                const modulesHTML = SYLLABUS_DATA[currentSubject].map((mod, mIdx) => {
+                    const topicsInMod = mod.topics;
+                    const completedInMod = topicsInMod.filter(t => completedTopics[`${currentSubject}-${mIdx}-${t}`]).length;
+                    const isModComplete = completedInMod === topicsInMod.length;
+
+                    const topicsHTML = topicsInMod.map((topic, tIdx) => {
+                        const isDone = completedTopics[`${currentSubject}-${mIdx}-${topic}`];
+                        return `
+                            <button onclick="toggleTopic('${currentSubject}', ${mIdx}, '${topic}')" 
+                                class="w-full flex items-center gap-4 px-6 py-4.5 text-left hover:bg-slate-50 transition-all border-b border-slate-100 last:border-0 group checkbox-bounce">
+                                <div class="flex-shrink-0 w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all ${isDone ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100 scale-110' : 'bg-white border-slate-200 text-transparent group-hover:border-indigo-300'}">
+                                    <i data-lucide="check" class="w-4 h-4 stroke-[3px]"></i>
+                                </div>
+                                <span class="text-sm font-medium ${isDone ? 'text-slate-400 line-through italic' : 'text-slate-700'}">${topic}</span>
+                            </button>
+                        `;
+                    }).join('');
+                    
+                    return `
+                        <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm mb-8 transition-all hover:shadow-md">
+                            <div class="bg-slate-50/80 px-7 py-5 border-b border-slate-200 flex justify-between items-center flex-wrap gap-4">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center font-black text-indigo-600 border border-slate-100">
+                                        ${mIdx + 1}
+                                    </div>
+                                    <h3 class="font-extrabold text-slate-800 text-lg">${mod.name}</h3>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">${completedInMod} / ${topicsInMod.length} Done</span>
+                                    <button onclick="toggleModule('${currentSubject}', ${mIdx})" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${isModComplete ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500 hover:bg-indigo-600 hover:text-white'}">
+                                        ${isModComplete ? 'Completed' : 'Mark Module'}
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="p-2">${topicsHTML}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = `
+                    <div class="flex items-center gap-3 mb-4">
+                        <button onclick="switchView('dashboard')" class="w-10 h-10 rounded-full bg-white shadow-sm border border-slate-200 flex items-center justify-center text-slate-500 hover:text-indigo-600 transition-all">
+                            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                        </button>
+                        <nav class="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                            <span class="hover:text-indigo-600 cursor-pointer" onclick="switchView('dashboard')">Home</span>
+                            <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                            <span class="text-indigo-600 font-black truncate max-w-[150px] md:max-w-none">${currentSubject}</span>
+                        </nav>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+                        <div>
+                            <h2 class="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">${currentSubject}</h2>
+                            <p class="text-slate-500 font-medium mt-2">Check off topics as you finish studying them.</p>
+                        </div>
+                        <div class="flex-shrink-0 bg-white px-8 py-5 rounded-[2rem] border border-slate-200 shadow-sm flex items-center gap-6">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Module Progress</span>
+                                <div class="flex items-baseline gap-1">
+                                    <span class="text-3xl font-black text-indigo-600">${stats.percent}%</span>
+                                    <span class="text-xs font-bold text-slate-300">/ 100</span>
+                                </div>
+                            </div>
+                            <div class="w-14 h-14 rounded-full border-[6px] border-slate-100 relative flex items-center justify-center">
+                                <svg class="absolute inset-0 -rotate-90 w-full h-full">
+                                    <circle cx="28" cy="28" r="23" fill="none" stroke="currentColor" stroke-width="6" class="text-indigo-600" style="stroke-dasharray: 145; stroke-dashoffset: ${145 - (145 * stats.percent / 100)}; transition: stroke-dashoffset 1s ease;"></circle>
+                                </svg>
+                                <i data-lucide="activity" class="w-5 h-5 text-indigo-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div>${modulesHTML}</div>
+                `;
+            }
+        }
+
+        function toggleTopic(sub, mIdx, topic) {
+            const key = `${sub}-${mIdx}-${topic}`;
+            completedTopics[key] = !completedTopics[key];
+            saveProgress();
+            renderContent();
+            renderSidebar();
+            lucide.createIcons();
+        }
+
+        function toggleModule(sub, mIdx) {
+            const mod = SYLLABUS_DATA[sub][mIdx];
+            const allInModDone = mod.topics.every(t => completedTopics[`${sub}-${mIdx}-${t}`]);
+            
+            mod.topics.forEach(t => {
+                completedTopics[`${sub}-${mIdx}-${t}`] = !allInModDone;
+            });
+
+            saveProgress();
+            renderContent();
+            renderSidebar();
+            lucide.createIcons();
+        }
+
+        function confirmReset() {
+            if (confirm("Are you sure you want to clear ALL study progress? This cannot be undone.")) {
+                completedTopics = {};
+                saveProgress();
+                renderContent();
+                renderSidebar();
+                lucide.createIcons();
+            }
+        }
+
+        function openFirstSubject() {
+            switchView('subject', Object.keys(SYLLABUS_DATA)[0]);
+        }
+
+        window.onload = () => {
+            renderSidebar();
+            renderContent();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
