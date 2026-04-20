@@ -30,6 +30,21 @@
 
         /* Custom progress bar transition */
         .progress-transition { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        /* Falling Hearts Animation */
+        @keyframes fall {
+            0% { transform: translateY(-10vh) rotate(0deg) scale(0.8); opacity: 0; }
+            10% { opacity: 0.6; }
+            80% { opacity: 0.6; }
+            100% { transform: translateY(110vh) rotate(360deg) scale(1.2); opacity: 0; }
+        }
+        .falling-heart {
+            position: fixed;
+            top: -10vh;
+            z-index: 95; /* Behind overlay content */
+            animation: fall linear forwards;
+            pointer-events: none;
+        }
     </style>
     
     <!-- Apply Theme Immediately to Prevent Flicker -->
@@ -94,14 +109,14 @@
     </div>
 
     <!-- Exam Countdown & Motivation Overlay -->
-    <div id="exam-overlay" onclick="hideCountdownOverlay()" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/90 backdrop-blur-md transition-all duration-500 cursor-pointer hidden opacity-0">
-        <div id="exam-overlay-content" class="text-center p-8 max-w-4xl mx-auto transform scale-95 transition-transform duration-500">
+    <div id="exam-overlay" onclick="hideCountdownOverlay()" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/95 backdrop-blur-md transition-all duration-500 cursor-pointer hidden opacity-0 overflow-hidden">
+        <div id="exam-overlay-content" class="text-center p-8 max-w-4xl mx-auto transform scale-95 transition-transform duration-500 z-[101]">
             <h2 class="text-7xl md:text-9xl font-black text-white tracking-tighter mb-2 drop-shadow-2xl">
                 <span id="days-remaining" class="text-indigo-400">XX</span> <span class="text-5xl md:text-7xl">DAYS</span>
             </h2>
             <p class="text-xl md:text-2xl font-bold text-slate-400 uppercase tracking-widest mb-12">Until the Exam (April 27)</p>
             
-            <div class="relative mb-12">
+            <div class="relative mb-8">
                 <i data-lucide="quote" class="absolute -top-6 -left-8 w-12 h-12 text-slate-700/50 rotate-180"></i>
                 <p id="motivation-text" class="text-3xl md:text-4xl font-semibold text-white/90 leading-tight italic relative z-10">
                     "Loading motivation..."
@@ -109,8 +124,20 @@
                 <i data-lucide="quote" class="absolute -bottom-6 -right-8 w-12 h-12 text-slate-700/50"></i>
             </div>
             
-            <div class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 rounded-full border border-white/20 animate-pulse text-white/80">
-                <span class="text-sm font-bold uppercase tracking-widest">Press Enter or Click anywhere to continue</span>
+            <!-- Interactive Tapping Heart for Blasts -->
+            <div onclick="blastHeart(event)" class="inline-flex flex-col items-center justify-center cursor-pointer group mb-8 transition-transform duration-100 ease-out p-4 relative z-50">
+                <div class="relative">
+                    <div class="absolute inset-0 bg-rose-500/30 rounded-full blur-xl group-hover:bg-rose-500/50 transition-colors duration-300"></div>
+                    <!-- Tapping animation triggers on active scale -->
+                    <i data-lucide="heart" class="w-20 h-20 text-rose-500 fill-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.5)] transform transition-transform duration-150 group-active:scale-75 group-hover:scale-110"></i>
+                </div>
+                <span class="text-rose-400/80 text-xs mt-3 font-bold tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity">Tap Me to Blast!</span>
+            </div>
+            
+            <div class="mt-4">
+                <div class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 rounded-full border border-white/20 animate-pulse text-white/80">
+                    <span class="text-sm font-bold uppercase tracking-widest">Press Enter or Click background to continue</span>
+                </div>
             </div>
         </div>
     </div>
@@ -230,6 +257,7 @@
         let idleTime = 0;
         let idleInterval;
         const IDLE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+        let fallingHeartsInterval;
 
         // Theme Toggling logic
         function toggleTheme() {
@@ -248,6 +276,83 @@
 
         function saveState() {
             localStorage.setItem('s4_study_progress_v2', JSON.stringify(state.completedTopics));
+        }
+
+        // Falling Hearts Generator
+        function startFallingHearts() {
+            fallingHeartsInterval = setInterval(() => {
+                const heart = document.createElement('div');
+                const size = 15 + Math.random() * 25; // 15px to 40px
+                const colors = ['text-rose-500', 'text-pink-500', 'text-fuchsia-500', 'text-red-500'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                heart.className = `falling-heart ${color}`;
+                heart.style.left = `${Math.random() * 100}vw`;
+                heart.style.animationDuration = `${3 + Math.random() * 5}s`;
+                heart.style.opacity = Math.random() * 0.4 + 0.2;
+                
+                // Using SVG string directly for super fast high-volume generation without lucide parser delay
+                heart.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`;
+                
+                const overlay = document.getElementById('exam-overlay');
+                if(overlay) overlay.appendChild(heart);
+                
+                setTimeout(() => {
+                    if(heart.parentNode) heart.remove();
+                }, 8000);
+            }, 300); // create a new heart every 300ms
+        }
+
+        function stopFallingHearts() {
+            clearInterval(fallingHeartsInterval);
+            document.querySelectorAll('.falling-heart').forEach(el => el.remove());
+        }
+
+        // Blast effect triggered by tapping the heart
+        function blastHeart(e) {
+            e.stopPropagation(); // crucial: this prevents the click from bubbling up to the overlay background and closing it
+            
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+
+            // Generate blast particles radially
+            for (let i = 0; i < 24; i++) {
+                const particle = document.createElement('div');
+                const size = 12 + Math.random() * 18;
+                
+                particle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-rose-500 fill-rose-500 drop-shadow-md"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`;
+                particle.className = 'fixed pointer-events-none z-[110]';
+                
+                // Start exactly at the clicked heart's center
+                particle.style.left = `${x - size/2}px`;
+                particle.style.top = `${y - size/2}px`;
+                
+                // Calculate random circular trajectory
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = 80 + Math.random() * 200; // how far they fly
+                const tx = Math.cos(angle) * velocity;
+                const ty = Math.sin(angle) * velocity - 80; // slightly upward bias for gravity effect
+                
+                particle.style.transition = 'transform 0.8s cubic-bezier(0.1, 0.8, 0.3, 1), opacity 0.8s ease-out';
+                particle.style.transform = 'translate(0, 0) scale(0.5)';
+                particle.style.opacity = '1';
+                
+                document.body.appendChild(particle);
+                
+                // Force layout reflow then apply animation
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        particle.style.transform = `translate(${tx}px, ${ty}px) scale(${Math.random() + 0.6})`;
+                        particle.style.opacity = '0';
+                    });
+                });
+
+                // Clean up particle
+                setTimeout(() => {
+                    if (particle.parentNode) particle.remove();
+                }, 800);
+            }
         }
 
         // Exam Countdown Logic
@@ -286,6 +391,7 @@
             }, 10);
             
             lucide.createIcons();
+            startFallingHearts();
         }
 
         function hideCountdownOverlay() {
@@ -303,6 +409,7 @@
                 }, 500); // Matches transition duration
                 
                 resetIdleTimer();
+                stopFallingHearts();
             }
         }
 
